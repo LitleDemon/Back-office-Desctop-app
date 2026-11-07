@@ -1,0 +1,120 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// ENUMS
+// ============================================
+enum LocationType {
+  WAREHOUSE
+  STORE
+}
+
+// ============================================
+// ГЕОГРАФИЯ И ТОЧКИ
+// ============================================
+model City {
+  id        String     @id @default(cuid())
+  name      String
+  region    String?
+  locations Location[]
+}
+
+model Location {
+  id                       String       @id @default(cuid())
+  type                     LocationType
+  name                     String
+  address                  String
+  cityId                   String
+  city                     City         @relation(fields: [cityId], references: [id])
+  isAssemblyEnabled        Boolean      @default(true)
+  supplyLimit              Decimal      @default(100000) @db.Decimal(12, 2)
+  rejectionThresholdPercent Int         @default(60)
+  
+  users                    UserLocation[]
+  products                 Product[]    // Упрощенная связь для начала
+  createdAt                DateTime     @default(now())
+}
+
+// ============================================
+// ПОЛЬЗОВАТЕЛИ И ПРАВА
+// ============================================
+model User {
+  id           String         @id @default(cuid())
+  email        String         @unique
+  passwordHash String
+  fullName     String
+  isActive     Boolean        @default(true)
+  createdAt    DateTime       @default(now())
+  
+  roles        UserRole[]
+  locations    UserLocation[]
+}
+
+model Role {
+  id          String           @id @default(cuid())
+  code        String           @unique // CASHIER, LOGIST, ADMIN и т.д.
+  name        String
+  permissions RolePermission[]
+  users       UserRole[]
+}
+
+model Permission {
+  id    String           @id @default(cuid())
+  code  String           @unique // supply.create, sales.view
+  roles RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id])
+  permission   Permission @relation(fields: [permissionId], references: [id])
+
+  @@id([roleId, permissionId])
+}
+
+model UserRole {
+  userId String
+  roleId String
+  user   User   @relation(fields: [userId], references: [id])
+  role   Role   @relation(fields: [roleId], references: [id])
+
+  @@id([userId, roleId])
+}
+
+model UserLocation {
+  userId     String
+  locationId String
+  user       User     @relation(fields: [userId], references: [id])
+  location   Location @relation(fields: [locationId], references: [id])
+
+  @@id([userId, locationId])
+}
+
+// ============================================
+// КАТАЛОГ (Базовый)
+// ============================================
+model Category {
+  id       String    @id @default(cuid())
+  name     String
+  products Product[]
+}
+
+model Product {
+  id         String   @id @default(cuid())
+  sku        String   @unique
+  name       String
+  price      Decimal  @db.Decimal(12, 2)
+  isActive   Boolean  @default(true)
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id])
+  
+  locationId String?  // Временно, для привязки к точке
+  location   Location? @relation(fields: [locationId], references: [id])
+}

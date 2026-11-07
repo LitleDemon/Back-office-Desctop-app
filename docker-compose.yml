@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  # База данных MySQL
+  mysql:
+    image: mysql:8.0
+    container_name: shopeconomy-db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: shopeconomy
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  # Веб-интерфейс для просмотра базы данных (вместо phpMyAdmin)
+  adminer:
+    image: adminer
+    container_name: shopeconomy-adminer
+    restart: always
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mysql
+
+volumes:
+  mysql_data:
