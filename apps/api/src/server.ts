@@ -26,6 +26,21 @@ app.get('/health/db', async (request, reply) => {
   }
 });
 
+  // 3. Получение списка всех товаров (Каталог)
+  app.get('/products', async (request, reply) => {
+    try {
+      const products = await prisma.product.findMany({
+        include: {
+          category: true, // Подтягиваем название категории
+        },
+      });
+      return products;
+    } catch (error) {
+      app.log.error(error);
+      return reply.status(500).send({ message: 'Ошибка при получении товаров' });
+    }
+  });
+
 const start = async () => {
   try {
     const port = Number(process.env.PORT) || 3000;
