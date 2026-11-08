@@ -119,3 +119,14 @@ model Product {
   locationId String?  // Временно, для привязки к точке
   location   Location? @relation(fields: [locationId], references: [id])
 }
+
+// ============================================
+// КЛИЕНТЫ
+// ============================================
+model Customer {
+  id         String   @id @default(cuid())
+  clientCode String   @unique // Код до 6 символов
+  fullName   String
+  balance    Decimal  @default(0) @db.Decimal(12, 2) // Баланс клиента
+  createdAt  DateTime @default(now())
+}

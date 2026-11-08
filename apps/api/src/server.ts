@@ -87,7 +87,79 @@ const start = async () => {
       }
     };
   });
-  
+
+    // 5. Поиск клиента по коду (для кассира)
+  app.get('/customers/:code', async (request, reply) => {
+    const { code } = request.params as { code: string };
+    
+    const customer = await prisma.customer.findUnique({
+      where: { clientCode: code }
+    });
+
+    if (!customer) {
+      return reply.status(404).send({ message: 'Клиент с таким кодом не найден' });
+    }
+
+    return customer;
+  });
+
+   // 6. Оформление чека на кассе (Checkout)
+  app.post('/pos/checkout', async (request, reply) => {
+    const { items, clientCode } = request.body as { 
+      items: { productId: string, qty: number }[], 
+      clientCode?: string 
+    };
+
+    if (!items || items.length === 0) {
+      return reply.status(400).send({ message: 'Корзина пуста' });
+    }
+
+    // 1. Считаем реальную сумму чека (по ценам из базы)
+    const productIds = items.map(i => i.productId);
+    const dbProducts = await prisma.product.findMany({ where: { id: { in: productIds } } });
+    
+    let totalAmount = 0;
+    for (const item of items) {
+      const product = dbProducts.find(p => p.id === item.productId);
+      if (!product) return reply.status(400).send({ message: 'Товар не найден' });
+      totalAmount += product.price.toNumber() * item.qty;
+    }
+
+    // 2. Логика оплаты
+    if (clientCode) {
+      // === ОПЛАТА С БАЛАНСА ===
+      const customer = await prisma.customer.findUnique({ where: { clientCode } });
+      if (!customer) return reply.status(404).send({ message: 'Клиент с таким кодом не найден' });
+
+      if (customer.balance.toNumber() < totalAmount) {
+        return reply.status(400).send({ message: `Недостаточно средств. Баланс: ${customer.balance} ₽` });
+      }
+
+      // Списываем
+      const updatedCustomer = await prisma.customer.update({
+        where: { clientCode },
+        data: { balance: { decrement: totalAmount } }
+      });
+
+      return { 
+        message: `✅ Оплата прошла с баланса клиента ${customer.fullName}`, 
+        totalAmount, 
+        newBalance: updatedCustomer.balance 
+      };
+
+    } else {
+      // === ОПЛАТА КАРТОЙ/НАЛИЧНЫМИ (95% успех) ===
+      const isSuccess = Math.random() > 0.05;
+      if (!isSuccess) {
+        return reply.status(500).send({ message: '❌ Недостаточно средств' });
+      }
+      return { 
+        message: '✅ Оплата прошла успешно', 
+        totalAmount 
+      };
+    }
+  });
+
   try {
     const port = Number(process.env.PORT) || 3000;
     // Слушаем на 0.0.0.0, чтобы сервер был доступен с других устройств в локальной сети (твои телефоны и второй ПК)

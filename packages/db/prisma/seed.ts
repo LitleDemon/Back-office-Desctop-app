@@ -111,6 +111,28 @@ async function main() {
   });
 
   console.log('✅ Тестовые пользователи добавлены (admin@shop.ru, cashier@shop.ru, logist@shop.ru)');
+    // 6. Создаем клиентов
+  await prisma.customer.upsert({
+    where: { clientCode: '123456' },
+    update: {},
+    create: {
+      clientCode: '123456',
+      fullName: 'Иван Иванов',
+      balance: 5000.00, // Дадим ему 5000 рублей
+    },
+  });
+
+  await prisma.customer.upsert({
+    where: { clientCode: '777' },
+    update: {},
+    create: {
+      clientCode: '777',
+      fullName: 'Анна Смирнова',
+      balance: 150.00, // А этой даме всего 150 рублей
+    },
+  });
+
+  console.log('✅ Тестовые клиенты добавлены (код 123456, код 777)');
   
   console.log('✅ Тестовый товар добавлен');
 
