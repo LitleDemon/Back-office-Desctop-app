@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
@@ -67,6 +68,50 @@ async function main() {
       locationId: testLocation.id,
     },
   });
+
+    // 5. Создаем пользователей (Суперадмин, Кассир, Логист)
+  const passwordHash = await bcrypt.hash('123456', 10);
+
+  // Суперадмин
+  await prisma.user.upsert({
+    where: { email: 'admin@shop.ru' },
+    update: {},
+    create: {
+      email: 'admin@shop.ru',
+      passwordHash,
+      fullName: 'Главный Администратор',
+      isSuperAdmin: true,
+    },
+  });
+
+  // Тестовый Кассир
+  const cashierRole = await prisma.role.findUnique({ where: { code: 'CASHIER' } });
+  await prisma.user.upsert({
+    where: { email: 'cashier@shop.ru' },
+    update: {},
+    create: {
+      email: 'cashier@shop.ru',
+      passwordHash,
+      fullName: 'Иван Кассиров',
+      roles: { create: { roleId: cashierRole!.id } },
+    },
+  });
+
+  // Тестовый Логист
+  const logistRole = await prisma.role.findUnique({ where: { code: 'LOGIST' } });
+  await prisma.user.upsert({
+    where: { email: 'logist@shop.ru' },
+    update: {},
+    create: {
+      email: 'logist@shop.ru',
+      passwordHash,
+      fullName: 'Петр Складов',
+      roles: { create: { roleId: logistRole!.id } },
+    },
+  });
+
+  console.log('✅ Тестовые пользователи добавлены (admin@shop.ru, cashier@shop.ru, logist@shop.ru)');
+  
   console.log('✅ Тестовый товар добавлен');
 
   console.log('🎉 База данных успешно заполнена!');
