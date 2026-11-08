@@ -103,7 +103,7 @@ const start = async () => {
     return customer;
   });
 
-   // 6. Оформление чека на кассе (Checkout)
+     // 6. Оформление чека на кассе (Checkout)
   app.post('/pos/checkout', async (request, reply) => {
     const { items, clientCode } = request.body as { 
       items: { productId: string, qty: number }[], 
@@ -114,20 +114,34 @@ const start = async () => {
       return reply.status(400).send({ message: 'Корзина пуста' });
     }
 
-    // 1. Считаем реальную сумму чека (по ценам из базы)
+    // 1. Получаем товары из базы для актуальных цен
     const productIds = items.map(i => i.productId);
     const dbProducts = await prisma.product.findMany({ where: { id: { in: productIds } } });
     
     let totalAmount = 0;
+    const orderItemsData = [];
+
     for (const item of items) {
       const product = dbProducts.find(p => p.id === item.productId);
       if (!product) return reply.status(400).send({ message: 'Товар не найден' });
-      totalAmount += product.price.toNumber() * item.qty;
+      
+      const lineTotal = product.price.toNumber() * item.qty;
+      totalAmount += lineTotal;
+      
+      // Готовим данные для сохранения (снимок цены и названия)
+      orderItemsData.push({
+        productId: product.id,
+        qtyRequested: item.qty,
+        priceSnapshot: product.price,
+        nameSnapshot: product.name,
+        lineTotal: lineTotal
+      });
     }
 
     // 2. Логика оплаты
+    let customerId = null;
+    
     if (clientCode) {
-      // === ОПЛАТА С БАЛАНСА ===
       const customer = await prisma.customer.findUnique({ where: { clientCode } });
       if (!customer) return reply.status(404).send({ message: 'Клиент с таким кодом не найден' });
 
@@ -135,29 +149,42 @@ const start = async () => {
         return reply.status(400).send({ message: `Недостаточно средств. Баланс: ${customer.balance} ₽` });
       }
 
-      // Списываем
-      const updatedCustomer = await prisma.customer.update({
+      // Списываем деньги с баланса
+      await prisma.customer.update({
         where: { clientCode },
         data: { balance: { decrement: totalAmount } }
       });
-
-      return { 
-        message: `✅ Оплата прошла с баланса клиента ${customer.fullName}`, 
-        totalAmount, 
-        newBalance: updatedCustomer.balance 
-      };
-
+      
+      customerId = customer.id;
     } else {
-      // === ОПЛАТА КАРТОЙ/НАЛИЧНЫМИ (95% успех) ===
+      // Имитация оплаты картой
       const isSuccess = Math.random() > 0.05;
       if (!isSuccess) {
-        return reply.status(500).send({ message: '❌ Недостаточно средств' });
+        return reply.status(500).send({ message: '❌ Недостаточно средств.' });
       }
-      return { 
-        message: '✅ Оплата прошла успешно', 
-        totalAmount 
-      };
     }
+
+    // 3. СОХРАНЯЕМ ЗАКАЗ В БАЗУ (Транзакция)
+    // Пока что мы жестко привязываем к нашему тестовому складу 'wh-moscow-1', 
+    // позже мы будем брать ID точки из JWT токена кассира.
+    const newOrder = await prisma.order.create({
+      data: {
+        source: 'POS',
+        status: 'COMPLETED',
+        locationId: 'wh-moscow-1', 
+        customerId: customerId,
+        total: totalAmount,
+        items: {
+          create: orderItemsData
+        }
+      }
+    });
+
+    return { 
+      message: clientCode ? `✅ Оплата прошла с баланса клиента` : '✅ Оплата прошла успешно', 
+      totalAmount,
+      orderId: newOrder.id
+    };
   });
 
   try {
