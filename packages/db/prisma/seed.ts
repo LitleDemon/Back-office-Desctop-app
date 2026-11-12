@@ -131,6 +131,19 @@ async function main() {
       balance: 150.00, // А этой даме всего 150 рублей
     },
   });
+    // 7. Тестовый Финансист
+  const financierRole = await prisma.role.findUnique({ where: { code: 'FINANCIER' } });
+  await prisma.user.upsert({
+    where: { email: 'financier@shop.ru' },
+    update: {},
+    create: {
+      email: 'financier@shop.ru',
+      passwordHash,
+      fullName: 'Олег Финансов',
+      roles: { create: { roleId: financierRole!.id } },
+    },
+  });
+  console.log('✅ Тестовый финансист добавлен (financier@shop.ru)');
 
   console.log('✅ Тестовые клиенты добавлены (код 123456, код 777)');
   

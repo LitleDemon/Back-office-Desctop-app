@@ -3,7 +3,8 @@ import Layout from './components/Layout';
 import DashboardPage from './pages/DashboardPage';
 import CatalogPage from './pages/CatalogPage';
 import LoginPage from './pages/LoginPage';
-import PosPage from './pages/PosPage'; // Не забудь создать этот файл из прошлого шага!
+import PosPage from './pages/PosPage'; 
+import FinancierPage from './pages/FinancierPage';
 
 // Проверка авторизации
 const isAuthenticated = () => !!localStorage.getItem('token');
@@ -25,23 +26,32 @@ function App() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         
-        <Route 
-          path="/" 
-          element={isAuthenticated() ? <Layout /> : <Navigate to="/login" />}
+          <Route 
+             path="/" 
+            element={isAuthenticated() ? <Layout /> : <Navigate to="/login" />}
         >
-          <Route index element={<DashboardPage />} />
-          <Route path="catalog" element={<CatalogPage />} />
+             <Route index element={<DashboardPage />} />
+             <Route path="catalog" element={<CatalogPage />} />
+             <Route path="pos" element={<PosPage />} /> 
           
           {/* Защищенный роут: пускаем только если есть роль CASHIER */}
           <Route 
             path="pos" 
             element={
-              hasRole(['CASHIER']) 
+              hasRole(['CASHIER' , 'STORE_ADMIN']) 
                 ? <PosPage /> 
                 : <Navigate to="/" /> /* Если нет прав, кидаем на главную */
             } 
           />
         </Route>
+         <Route 
+            path="finances" 
+            element={
+              hasRole(['FINANCIER', 'STORE_ADMIN']) 
+                ? <FinancierPage /> 
+                : <Navigate to="/" /> 
+            } 
+          />
       </Routes>
     </BrowserRouter>
   );

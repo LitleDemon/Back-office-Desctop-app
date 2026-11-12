@@ -18,6 +18,21 @@ app.register(cors, { origin: true });
 app.get('/health', async () => {
   return { status: 'ok', message: 'API is running' };
 });
+// Функция проверки JWT токена
+const verifyToken = async (request: any, reply: any) => {
+  try {
+    const authHeader = request.headers.authorization;
+    if (!authHeader) {
+      return reply.status(401).send({ message: 'Токен не предоставлен' });
+    }
+    
+    const token = authHeader.split(' ')[1]; // Отрезаем слово "Bearer"
+    const decoded = jwt.verify(token, JWT_SECRET);
+    request.user = decoded; // Сохраняем данные юзера в запрос
+  } catch (err) {
+    return reply.status(401).send({ message: 'Неверный или просроченный токен' });
+  }
+};
 
 // 2. Проверка связи с Базой Данных
 app.get('/health/db', async (request, reply) => {
@@ -185,6 +200,38 @@ const start = async () => {
       totalAmount,
       orderId: newOrder.id
     };
+  });
+    // 7. Финансовая аналитика (Только чтение)
+  app.get('/finances/summary', { preHandler: verifyToken }, async (request, reply) => {
+    try {
+      // Получаем все заказы (в реальном проекте тут нужна пагинация и фильтры по датам)
+      const orders = await prisma.order.findMany({
+        include: {
+          customer: true,
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+
+      let totalRevenue = 0;
+      for (const order of orders) {
+        totalRevenue += order.total.toNumber();
+      }
+
+      const totalOrders = orders.length;
+      const averageCheck = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+
+      return {
+        stats: {
+          totalRevenue,
+          totalOrders,
+          averageCheck
+        },
+        recentOrders: orders.slice(0, 50) // Отдаем последние 50 чеков
+      };
+    } catch (error) {
+      app.log.error(error);
+      return reply.status(500).send({ message: 'Ошибка при загрузке аналитики' });
+    }
   });
 
   try {

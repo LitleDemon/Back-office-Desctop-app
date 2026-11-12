@@ -15,6 +15,8 @@ export default function Layout() {
   
   const canAccessPos = isSuperAdmin || roles.includes('CASHIER');
   const canAccessWarehouse = isSuperAdmin || roles.includes('LOGIST');
+  const canAccessFinances = isSuperAdmin || roles.includes('FINANCIER') || roles.includes('STORE_ADMIN');
+
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -40,15 +42,20 @@ export default function Layout() {
           <Link to="/" style={{ color: 'white', textDecoration: 'none' }}>🏠 Главная</Link>
           <Link to="/catalog" style={{ color: 'white', textDecoration: 'none' }}>📦 Каталог</Link>
           
-          {/* Показываем Кассу только тем, у кого есть права */}
+          {/*  Касса  */}
           {canAccessPos && (
             <Link to="/pos" style={{ color: 'white', textDecoration: 'none' }}>🛒 Касса</Link>
           )}
           
-          {/* Показываем Склад только логистам и админам */}
+          {/*  Склад  */}
           {canAccessWarehouse && (
             <Link to="/warehouse" style={{ color: 'white', textDecoration: 'none' }}>🏭 Склад</Link>
           )}
+          {/*  Финансы  */}
+            {canAccessFinances && (
+            <Link to="/finances" style={{ color: 'white', textDecoration: 'none' }}>📊 Финансы</Link>
+          )}
+
         </nav>
 
         <div style={{ marginTop: 'auto', paddingTop: '20px' }}>
